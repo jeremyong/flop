@@ -1,6 +1,8 @@
 # FLOꟼ
 
-An MIT-licensed image viewer equipped with a GPU-accelerated perceptual image diffing algorithm based
+[Prebuilt Binaries](https://github.com/jeremyong/flop/releases) - currently Windows only
+
+FLOꟼ is an MIT-licensed image viewer equipped with a GPU-accelerated perceptual image diffing algorithm based
 on [ꟻLIP](https://research.nvidia.com/publication/2020-07_FLIP).
 
 The tool is usable either as a standalone executable for comparing images, or as a library to programmatically
