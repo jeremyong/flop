@@ -1,0 +1,10 @@
+# Build folder
+build/
+
+# IDE settings
+.vscode
+.vs
+
+.clangd
+.ccls-cache
+.out
