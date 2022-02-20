@@ -10,7 +10,7 @@ compare images and retrieve a comparison summary and write results to disk.
 with a certain set of capabilities afforded to it. Additional testing and possible changes are needed
 to verify correct operation on other drivers/platforms/hardware before relaxing requirements.
 
-[Demo](demo.mp4)
+https://user-images.githubusercontent.com/250149/154824329-fd790c14-b228-4ca7-b384-3c372e72b09e.mp4
 
 ## Build prerequisites
 
