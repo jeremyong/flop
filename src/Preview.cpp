@@ -154,6 +154,11 @@ void Preview::set_image(Image& image)
 void Preview::set_viewport(Rect2D viewport)
 {
     viewport_ = viewport;
+    if (!image_ || !image_->image_)
+    {
+        viewport_dirty_ = true;
+        return;
+    }
 
     if (image_->aspect() < preview_viewport_.width / preview_viewport_.height)
     {
@@ -261,9 +266,15 @@ float Preview::min_scale() const
 
 void Preview::render(GLFWwindow* window, VkCommandBuffer cb)
 {
-    if (image_ == nullptr || viewport_.x2 == 0)
+    if (image_ == nullptr || image_->image_ == VK_NULL_HANDLE || viewport_.x2 == 0)
     {
         return;
+    }
+
+    if (viewport_dirty_)
+    {
+        set_viewport(viewport_);
+        viewport_dirty_ = false;
     }
 
     if (pan_active_)

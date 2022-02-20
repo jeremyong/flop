@@ -835,7 +835,6 @@ int flop_analyze(char const* reference_path,
               << "Error histogram: \n[";
 
 
-    float average_error = 0.f;
     uint32_t histogram[32];
     std::memcpy(histogram, g_error_histogram.data_, sizeof(uint32_t) * 32);
     std::printf("%i", histogram[0]);
@@ -843,12 +842,8 @@ int flop_analyze(char const* reference_path,
     for (uint32_t i = 1; i != 32u; ++i)
     {
         std::printf(", %i", histogram[i]);
-        average_error += histogram[i] * i / 32.f;
-        sample_count += histogram[i];
     }
     std::printf("]\n");
-
-    std::printf("Averaage error: %f\n", average_error);
 
     return 0;
 }

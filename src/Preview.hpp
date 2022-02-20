@@ -61,5 +61,6 @@ private:
     uint32_t color_map_          = 0;
     bool use_color_map_          = false;
     bool pan_active_             = false;
+    bool viewport_dirty_         = false;
     Quadrant quadrant_           = Quadrant::TopLeft;
 };
