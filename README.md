@@ -1,9 +1,9 @@
 # FLOꟼ
 
-[Prebuilt Binaries](https://github.com/jeremyong/flop/releases) - currently Windows only
+[Prebuilt Single-file Binaries](https://github.com/jeremyong/flop/releases) - currently Windows only
 
-FLOꟼ is an MIT-licensed image viewer equipped with a GPU-accelerated perceptual image diffing algorithm based
-on [ꟻLIP](https://research.nvidia.com/publication/2020-07_FLIP).
+FLOꟼ (FLOP with a backwards P if rendered correctly) is an MIT-licensed image viewer equipped with a GPU-accelerated perceptual image diffing algorithm based
+on [ꟻLIP](https://research.nvidia.com/publication/2020-07_FLIP). Read the accompanying blog post [here](https://www.jeremyong.com/color%20theory/2022/02/19/implementing-the-flip-algorithm/).
 
 The tool is usable either as a standalone executable for comparing images, or as a library to programmatically
 compare images and retrieve a comparison summary and write results to disk.
@@ -69,7 +69,7 @@ The full help text (obtainable by passing `-h` or `--help`) is reproduced below.
       -h,--help                   Print this help message and exit
       -r,--reference TEXT         Path to reference image
       -t,--test TEXT              Path to test image
-      -o TEXT                     Path to output file.
+      -o TEXT                     Path to output file
       --hl,--headless             Request that a gui not be presented
 
 ## Limitations
