@@ -1,5 +1,7 @@
 # FLOꟼ
 
+![image](https://user-images.githubusercontent.com/250149/156910917-7f61ba21-d8fb-44f0-8ec5-ebef4a64bbc0.png)
+
 [Prebuilt Single-file Binaries](https://github.com/jeremyong/flop/releases) - currently Windows only
 
 FLOꟼ (FLOP with a backwards P if rendered correctly) is an MIT-licensed image viewer equipped with a GPU-accelerated perceptual image diffing algorithm based
