@@ -40,6 +40,7 @@ dependencies used are:
 - [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) (MIT)
 - [CLI11](https://github.com/CLIUtils/CLI11) (BSD 3-clause)
 - [stb](https://github.com/nothings/stb) (MIT)
+- [tinyexr](https://github.com/syoyo/tinyexr) (BSD 3-clause)
 
 By default, both the library target and standalone executable are built. If you wish to link the
 library against your own code, you may either link the `lflop` library target in cmake, or manually
@@ -62,15 +63,21 @@ When launched in this way, an empty window with a few UI controls to select some
 Alternatively, command line options may be passed to optionally run FLOꟼ in headless mode, and supply image paths.
 The full help text (obtainable by passing `-h` or `--help`) is reproduced below.
 
-    An image comparison tool and visualizer
+    An image comparison tool and visualizer. All options are optional unless headless mode is requested.
     Usage: FLOP [OPTIONS]
     
     Options:
       -h,--help                   Print this help message and exit
       -r,--reference TEXT         Path to reference image
       -t,--test TEXT              Path to test image
-      -o TEXT                     Path to output file
+      -o,--output TEXT            Path to output file.
+      -e,--exposure FLOAT         Exposure to apply to an HDR image (log 2 stops)
+      --tonemapper ENUM:value in {ACES->1,Reinhard->2,Hable->3} OR {1,2,3}
+                                  HDR to LDR tonemapping operator
       --hl,--headless             Request that a gui not be presented
+      -f,--force                  Overwrite image if file exists at specified output path
+
+FLOꟼ may also be used as a library. The `test/` folder demonstrates how to link and programmatically analyze LDR or HDR images.
 
 ## Limitations
 
@@ -78,3 +85,8 @@ While FLOꟼ is implemented on the GPU, minimal profiling was actually done to f
 Performance varies based on image size.
 FLOꟼ currently doesn't properly account for differences in alpha, like the original paper.
 The various kernel weights themselves are currently hardcoded in the shader bytecode. This may be relaxed in the future.
+
+The HDR-ꟻLIP algorithm doesn't require specifying exposure when HDR images are supplied. It operates by
+automatically determining the exposure range, compute the ꟻLIP error for each exposure, then taking the maximum error per-pixel.
+FLOꟼ on the other hand, is meant to be used interactively, so it's recommended that the GUI be used to determine the
+appropriate exposure when analyzing HDR images.
