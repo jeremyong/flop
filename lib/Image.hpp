@@ -7,11 +7,12 @@
 class Image
 {
 public:
-    static void reset_count();
+    static void reset_count(uint32_t counter = 0);
 
     // Decodes an image and uploads it to the GPU. The result is provided in the
     // shader read-only layout.
-    static Image create_from_file(char const* path);
+    static Image create_from_non_exr(char const* path);
+    static Image create_from_exr(char const* path);
 
     // Creates a device image with matching dimensions. The image layout that
     // results is undefined.
@@ -53,5 +54,6 @@ public:
     int32_t height_     = 0;
     int32_t channels_   = 0;
     uint32_t index_     = 0;
+    bool hdr_           = false;
     bool writable_      = false;
 };

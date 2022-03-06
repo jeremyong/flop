@@ -1,3 +1,4 @@
+#include "Common.hlsli"
 
 struct PushConstants
 {
@@ -6,6 +7,8 @@ struct PushConstants
 
     uint input;
     uint color_map;
+    uint tonemap;
+    float exposure;
 };
 [[vk::push_constant]]
 PushConstants constants;
@@ -58,15 +61,30 @@ PSOutput PSMain(VSOutput IN)
     }
 
     float r = textures[constants.input].Sample(texture_sampler, IN.uv).r;
-    float u = r * 255.0 + 0.5;
-    uint left_index = clamp(floor(u), 0.0, 255.0);
-    uint right_index = clamp(ceil(u), left_index, 255.0);
+    float u = r * (255) + 0.5;
+    uint left_index = clamp(floor(u), 0, 255);
+    uint right_index = clamp(ceil(u), left_index, 255);
     // Interpolate between left and right endpoints
     float3 left = buffers[constants.color_map].Load<float3>(left_index * 12);
     float3 right = buffers[constants.color_map].Load<float3>(right_index * 12);
     OUT.color = float4(lerp(left, right, frac(u)), 1.0);
 #else
-    OUT.color = textures[constants.input].Sample(texture_sampler, IN.uv);
+    float4 color = textures[constants.input].Sample(texture_sampler, IN.uv);
+
+    if (constants.tonemap == 1)
+    {
+        color.rgb = aces_tonemap(constants.exposure * color.rgb);
+    }
+    else if (constants.tonemap == 2)
+    {
+        color.rgb = reinhard_tonemap(constants.exposure * color.rgb);
+    }
+    else if (constants.tonemap == 3)
+    {
+        color.rgb = hable_tonemap(constants.exposure * color.rgb);
+    }
+
+    OUT.color = color;
 #endif
     return OUT;
 }

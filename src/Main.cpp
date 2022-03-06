@@ -4,6 +4,7 @@
 #include <Image.hpp>
 #include <VkGlobals.hpp>
 
+#include "Preview.hpp"
 #include "UI.hpp"
 
 #define GLFW_INCLUDE_VULKAN
@@ -17,6 +18,7 @@
 #include <imgui.h>
 #include <iostream>
 #include <numbers>
+#include <unordered_map>
 
 static VkSurfaceKHR s_surface;
 static VkSurfaceFormatKHR s_surface_format;
@@ -269,7 +271,20 @@ int main(int argc, char const* argv[])
     std::string test;
     app.add_option("-t,--test", test, "Path to test image");
     std::string output;
-    app.add_option("-o, ", output, "Path to output file.");
+    app.add_option("-o,--output", output, "Path to output file.");
+
+    float exposure = 1.f;
+    app.add_option("-e,--exposure",
+                   exposure,
+                   "Exposure to apply to an HDR image (log 2 stops)");
+
+    std::unordered_map<std::string, Tonemap> tonemappers{
+        {"ACES", Tonemap::ACES},
+        {"Reinhard", Tonemap::Reinhard},
+        {"Hable", Tonemap::Hable}};
+    Tonemap tonemap = Tonemap::ACES;
+    app.add_option("--tonemapper", tonemap, "HDR to LDR tonemapping operator")
+        ->transform(CLI::CheckedTransformer(tonemappers, CLI::ignore_case));
 
     int headless;
     app.add_flag(
@@ -322,6 +337,9 @@ int main(int argc, char const* argv[])
     s_ui.set_reference(reference);
     s_ui.set_test(test);
     s_ui.set_output(output);
+    s_ui.set_tonemap(tonemap);
+    s_ui.set_exposure(exposure);
+
     if (!glfwInit())
     {
         std::cerr << "Failed to initialize GLFW!\n";

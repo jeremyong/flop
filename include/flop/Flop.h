@@ -26,7 +26,7 @@ extern "C"
     int flop_init(uint32_t instanceExtensionCount,
                   char const** requiredInstanceExtensions);
 
-    // Compare the left and right images, and write out a summary of the
+    // Compare the left and right LDR images, and write out a summary of the
     // analysis
     int flop_analyze(char const* image_left_path,
                      char const* image_right_path,
@@ -34,6 +34,16 @@ extern "C"
                      // readback is performed
                      char const* output_path,
                      FlopSummary* out_summary);
+
+    int flop_analyze_hdr(char const* image_left_path,
+                         char const* image_right_path,
+                         // The output path is optional, and if not supplied, no
+                         // readback is performed
+                         char const* output_path,
+                         float exposure,
+                         // 0: ACES, 1: Reinhard, 2: Hable
+                         int tonemapper,
+                         FlopSummary* out_summary);
 
 #ifdef __cplusplus
 } // extern "C"

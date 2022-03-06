@@ -1,5 +1,8 @@
 #include "Image.hpp"
 
+#include <tinyexr.h>
+#include <iostream>
+
 // Forward declare STBI calls to avoid including a massive header
 #include <cstdio>
 #include <cstdlib>
@@ -36,19 +39,15 @@ constexpr static VkImageSubresourceLayers s_subresource{
     .baseArrayLayer = 0,
     .layerCount     = 1};
 
-void Image::reset_count()
+void Image::reset_count(uint32_t counter)
 {
-    s_image_count = 0;
+    s_image_count = counter;
 }
 
-Image Image::create_from_file(char const* path)
+void init_from_data(void* image_data, int bytes_per_channel, Image& image)
 {
     VkBuffer staging_buffer;
     VmaAllocation staging_allocation;
-    Image image;
-
-    unsigned char* stb_data
-        = stbi_load(path, &image.width_, &image.height_, &image.channels_, 4);
     image.set_extents();
 
     VmaAllocationCreateInfo staging_allocation_info{
@@ -56,7 +55,7 @@ Image Image::create_from_file(char const* path)
     };
     VkBufferCreateInfo staging_info{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size  = static_cast<VkDeviceSize>(image.width_ * image.height_ * 4),
+        .size  = static_cast<VkDeviceSize>(image.width_ * image.height_ * 4 * bytes_per_channel),
         .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 1,
@@ -70,12 +69,12 @@ Image Image::create_from_file(char const* path)
                     nullptr);
     void* data;
     vmaMapMemory(g_allocator, staging_allocation, &data);
-    std::memcpy(data, stb_data, image.width_ * image.height_ * 4);
+    std::memcpy(data, image_data, image.width_ * image.height_ * 4 * bytes_per_channel);
 
     VkImageCreateInfo image_info{
         .sType       = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType   = VK_IMAGE_TYPE_2D,
-        .format      = VK_FORMAT_R8G8B8A8_SRGB,
+        .format      = bytes_per_channel == 1 ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R32G32B32A32_SFLOAT,
         .extent      = image.extent3_,
         .mipLevels   = 1,
         .arrayLayers = 1,
@@ -170,7 +169,6 @@ Image Image::create_from_file(char const* path)
     vkQueueSubmit(g_graphics_queue, 1, &submit, VK_NULL_HANDLE);
     vkDeviceWaitIdle(g_device);
 
-    stbi_image_free(stb_data);
     vmaUnmapMemory(g_allocator, staging_allocation);
     vmaDestroyBuffer(g_allocator, staging_buffer, staging_allocation);
 
@@ -204,6 +202,50 @@ Image Image::create_from_file(char const* path)
         .pImageInfo      = &descriptor_info,
     };
     vkUpdateDescriptorSets(g_device, 1, &descriptor_write, 0, nullptr);
+}
+
+Image Image::create_from_exr(char const* path)
+{
+    Image image;
+    image.hdr_ = true;
+
+    float* rgba = nullptr;
+    char const* error = nullptr;
+    if (LoadEXRWithLayer(&rgba, &image.width_, &image.height_, path, nullptr, &error) < 0 || !rgba)
+    {
+        if (error)
+        {
+            std::cout << "Error loading EXR " << path << ":\n" << error << '\n';
+        }
+        else
+        {
+            std::cout << "Error loading EXR " << path << '\n';
+        }
+        std::exit(1);
+    }
+    image.channels_ = 4;
+
+    init_from_data(rgba, 4, image);
+    std::free(rgba);
+
+    return image;
+}
+
+Image Image::create_from_non_exr(char const* path)
+{
+    Image image;
+
+    unsigned char* stb_data
+        = stbi_load(path, &image.width_, &image.height_, &image.channels_, 4);
+
+    if (!stb_data)
+    {
+        std::cout << "Error loading PNG " << path << ":\n";
+        std::exit(1);
+    }
+
+    init_from_data(stb_data, 1, image);
+    stbi_image_free(stb_data);
 
     return image;
 }
@@ -358,6 +400,7 @@ void Image::reset()
         width_      = 0;
         height_     = 0;
         channels_   = 0;
+        hdr_        = false;
     }
 }
 

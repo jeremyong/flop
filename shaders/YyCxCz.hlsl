@@ -12,6 +12,8 @@ struct PushConstants
     float2 uv_offset;
     float uv_scale;
     uint input;
+    uint tonemap;
+    float exposure;
 };
 
 [[vk::push_constant]]
@@ -30,6 +32,20 @@ float4 PSMain(VSOutput IN) : SV_Target0
 {
     Texture2D<float4> input_texture = textures[constants.input];
     float4 color = input_texture.Load(int3(IN.uv * constants.extent, 0));
+
+    if (constants.tonemap == 1)
+    {
+        color.rgb = aces_tonemap(constants.exposure * color.rgb);
+    }
+    else if (constants.tonemap == 2)
+    {
+        color.rgb = reinhard_tonemap(constants.exposure * color.rgb);
+    }
+    else if (constants.tonemap == 3)
+    {
+        color.rgb = hable_tonemap(constants.exposure * color.rgb);
+    }
+
     float3 YyCxCz = rgb_to_linearized_Lab(color.rgb);
-    return float4(YyCxCz, 1);
+    return float4(YyCxCz, color.a);
 }

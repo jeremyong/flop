@@ -22,6 +22,8 @@ struct PushConstants
     float uv_scale;
     uint32_t input;
     uint32_t color_map;
+    uint32_t tonemap;
+    float exposure;
 };
 using namespace flop;
 
@@ -141,9 +143,19 @@ void Preview::init(VkRenderPass render_pass)
     vkDestroyShaderModule(g_device, ps_shader, nullptr);
 }
 
+void Preview::set_exposure(float exposure)
+{
+    exposure_ = exposure;
+}
+
 void Preview::set_quadrant(Quadrant quadrant)
 {
     quadrant_ = quadrant;
+}
+
+void Preview::set_tonemap(Tonemap tonemap)
+{
+    tonemap_ = tonemap;
 }
 
 void Preview::set_image(Image& image)
@@ -292,10 +304,13 @@ void Preview::render(GLFWwindow* window, VkCommandBuffer cb)
             = old_uv_offset_[1] - delta_y * uv_scale_ / preview_viewport_.height;
     }
 
-    PushConstants push_constants{.uv_offset = {uv_offset_[0], uv_offset_[1]},
-                                 .uv_scale  = uv_scale_,
-                                 .input     = image_->index_,
-                                 .color_map = color_map_};
+    PushConstants push_constants{
+        .uv_offset = {uv_offset_[0], uv_offset_[1]},
+        .uv_scale  = uv_scale_,
+        .input     = image_->index_,
+        .color_map = color_map_,
+        .tonemap   = image_->hdr_ ? static_cast<uint32_t>(tonemap_) : 0u,
+        .exposure  = exposure_};
     vkCmdPushConstants(cb,
                        s_pipeline_layout,
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,

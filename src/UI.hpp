@@ -34,6 +34,10 @@ public:
 
     void set_test(std::string const& test);
 
+    void set_tonemap(Tonemap tonemap);
+
+    void set_exposure(float exposure);
+
     void set_output(std::string const& output);
 
     bool analyze(bool issued_from_ui);
@@ -51,6 +55,8 @@ private:
     float toggle_interval_s_   = 0.75f;
     float error_histogram_[32] = {};
     float error_max_           = 0.f;
+    float exposure_            = 0.f;
+    Tonemap tonemap_           = Tonemap::ACES;
     ColorMap color_map_        = ColorMap::Magma;
     bool active_               = false;
     bool viewport_dirty_       = false;

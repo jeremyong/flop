@@ -14,6 +14,13 @@ struct Rect2D
     int y2;
 };
 
+enum class Tonemap : int
+{
+    ACES     = 1,
+    Reinhard = 2,
+    Hable    = 3,
+};
+
 class Preview
 {
 public:
@@ -28,7 +35,9 @@ public:
     // Initialize pipelines, descriptor sets, etc.
     static void init(VkRenderPass render_pass);
 
+    void set_exposure(float exposure);
     void set_quadrant(Quadrant quadrant);
+    void set_tonemap(Tonemap tonemap);
     void set_image(Image& image);
     void set_viewport(Rect2D viewport);
     void set_color_map(ColorMap color_map);
@@ -58,6 +67,8 @@ private:
     float uv_scale_              = 1.f;
     double cursor_[2]            = {0, 0};
     float old_uv_offset_[2]      = {0.f, 0.f};
+    float exposure_              = 1.f;
+    Tonemap tonemap_             = Tonemap::ACES;
     uint32_t color_map_          = 0;
     bool use_color_map_          = false;
     bool pan_active_             = false;

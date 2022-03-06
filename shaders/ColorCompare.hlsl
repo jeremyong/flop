@@ -79,8 +79,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     float3 colors[2] = { reference_image[id.xy].rgb, test_image[id.xy].rgb };
 
-    colors[0] = rgb_to_CIELAB(colors[0]);
-    colors[1] = rgb_to_CIELAB(colors[1]);
+    colors[0] = xyz_to_CIELAB(colors[0]);
+    colors[1] = xyz_to_CIELAB(colors[1]);
 
     hunt_adjust(colors[0]);
     hunt_adjust(colors[1]);

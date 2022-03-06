@@ -51,6 +51,7 @@ add_spv(Preview.hlsl PreviewVS.spv vs_6_6 VSMain)
 add_spv(Preview.hlsl PreviewPS.spv ps_6_6 PSMain)
 add_spv(Preview.hlsl PreviewPSColorMap.spv ps_6_6 PSMain "-DCOLORMAP")
 add_spv(Summarize.hlsl Summarize.spv cs_6_6 CSMain)
+add_spv(Tonemap.hlsl Tonemap.spv ps_6_6 PSMain)
 add_spv(YyCxCz.hlsl YyCxCz.spv ps_6_6 PSMain)
 
 configure_file(HexToLib.cmake ${SHADER_BIN}/CMakeLists.txt)

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
@@ -28,7 +29,9 @@ static bool s_validation_enabled = false;
 static bool s_validation_enabled = true;
 #endif
 
-static int create_device(char const* preferred_device);
+static bool s_initialized;
+
+static int create_device(char const* preferred_device, bool swapchain);
 static void create_kernels();
 
 using namespace flop;
@@ -79,6 +82,12 @@ void flop_config_enable_validation()
 int flop_init(uint32_t instanceExtensionCount,
               char const** requiredInstanceExtensions)
 {
+    if (s_initialized)
+    {
+        return 0;
+    }
+    s_initialized = true;
+
     if (volkInitialize() != VK_SUCCESS)
     {
         s_error = "Failed to initialize Vulkan loader.";
@@ -140,7 +149,7 @@ int flop_init(uint32_t instanceExtensionCount,
     vkCmdEndDebugUtilsLabel = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
         vkGetInstanceProcAddr(g_instance, "vkCmdEndDebugUtilsLabelEXT"));
 
-    if (create_device(nullptr))
+    if (create_device(nullptr, instanceExtensionCount != 0))
     {
         return 1;
     }
@@ -154,7 +163,7 @@ int flop_init(uint32_t instanceExtensionCount,
     return 0;
 }
 
-static int create_device(char const* preferred_device)
+static int create_device(char const* preferred_device, bool swapchain)
 {
     std::vector<VkPhysicalDevice> physicalDevices
         = vk_enumerate<VkPhysicalDevice>(vkEnumeratePhysicalDevices, g_instance);
@@ -248,12 +257,14 @@ static int create_device(char const* preferred_device)
                .pQueuePriorities = &queue_priority,
            }};
 
-    char const* device_exts[] = {"VK_EXT_descriptor_indexing",
-                                 "VK_KHR_swapchain",
-                                 "VK_KHR_timeline_semaphore",
-                                 "VK_EXT_shader_subgroup_ballot",
-                                 "VK_EXT_shader_subgroup_vote",
-                                 VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
+    char const* device_exts[] = {
+        "VK_EXT_descriptor_indexing",
+        "VK_KHR_timeline_semaphore",
+        "VK_EXT_shader_subgroup_ballot",
+        "VK_EXT_shader_subgroup_vote",
+        VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+        "VK_KHR_swapchain",
+    };
 
     VkPhysicalDeviceFeatures features{
         .robustBufferAccess                      = VK_TRUE,
@@ -288,13 +299,14 @@ static int create_device(char const* preferred_device)
     };
 
     VkDeviceCreateInfo device_info{
-        .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext                   = &features2,
-        .queueCreateInfoCount    = g_compute_queue_index == -0u ? 1u : 2u,
-        .pQueueCreateInfos       = queue_infos,
-        .enabledLayerCount       = 0,
-        .ppEnabledLayerNames     = nullptr,
-        .enabledExtensionCount   = sizeof(device_exts) / sizeof(char const*),
+        .sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext                = &features2,
+        .queueCreateInfoCount = g_compute_queue_index == -0u ? 1u : 2u,
+        .pQueueCreateInfos    = queue_infos,
+        .enabledLayerCount    = 0,
+        .ppEnabledLayerNames  = nullptr,
+        .enabledExtensionCount
+        = sizeof(device_exts) / sizeof(char const*) - (swapchain ? 0 : 1),
         .ppEnabledExtensionNames = device_exts,
         .pEnabledFeatures        = &features};
 
@@ -464,7 +476,7 @@ static int create_device(char const* preferred_device)
 
 void create_kernels()
 {
-    g_yycxcz.init(YyCxCz_spv_data, YyCxCz_spv_size, 4 * 6);
+    g_yycxcz.init(YyCxCz_spv_data, YyCxCz_spv_size, 4 * 8);
     g_csf_filter_x
         = Kernel::create(CSFFilterX_spv_data, CSFFilterX_spv_size, 64, 1, false);
     g_csf_filter_y
@@ -487,10 +499,79 @@ char const* flop_get_error()
     return s_error;
 }
 
-int flop_analyze(char const* reference_path,
-                 char const* test_path,
-                 char const* output_path,
-                 FlopSummary* out_summary)
+void flop_init_reference(char const* reference_path)
+{
+    std::filesystem::path reference_ext
+        = std::filesystem::path{reference_path}.extension();
+
+    if (reference_ext == ".exr")
+    {
+        g_reference.source_ = Image::create_from_exr(reference_path);
+    }
+    else if (reference_ext == ".png" || reference_ext == ".jpg"
+             || reference_ext == ".jpeg" || reference_ext == ".bmp")
+    {
+        g_reference.source_ = Image::create_from_non_exr(reference_path);
+    }
+    else
+    {
+        std::printf(
+            "Reference image %s has unrecognized extension\n", reference_path);
+    }
+}
+
+void flop_init_test(char const* test_path)
+{
+    std::filesystem::path test_ext = std::filesystem::path{test_path}.extension();
+
+    if (test_ext == ".exr")
+    {
+        g_test.source_ = Image::create_from_exr(test_path);
+    }
+    else if (test_ext == ".png" || test_ext == ".jpg" || test_ext == ".jpeg"
+             || test_ext == ".bmp")
+    {
+        g_test.source_ = Image::create_from_non_exr(test_path);
+    }
+    else
+    {
+        std::printf("Test image %s has unrecognized extension\n", test_path);
+    }
+}
+
+void flop_reset(bool bypass)
+{
+    vkDeviceWaitIdle(g_device);
+    if (bypass)
+    {
+        Image::reset_count(2);
+    }
+    else
+    {
+        Image::reset_count();
+        g_reference.source_.reset();
+        g_test.source_.reset();
+    }
+    g_reference.yycxcz_.reset();
+    g_reference.yycxcz_blur_x_.reset();
+    g_reference.yycxcz_blurred_.reset();
+    g_reference.feature_blur_x_.reset();
+    g_test.yycxcz_.reset();
+    g_test.yycxcz_blur_x_.reset();
+    g_test.yycxcz_blurred_.reset();
+    g_test.feature_blur_x_.reset();
+    g_error.reset();
+    g_error_color.reset();
+    g_error_readback.reset();
+}
+
+int flop_analyze_impl(char const* reference_path,
+                      char const* test_path,
+                      char const* output_path,
+                      float exposure,
+                      int tonemap,
+                      FlopSummary* out_summary,
+                      bool bypass_initialization)
 {
     if (!std::filesystem::exists(reference_path))
     {
@@ -508,25 +589,14 @@ int flop_analyze(char const* reference_path,
 
     if (g_reference.source_.image_ != VK_NULL_HANDLE)
     {
-        vkDeviceWaitIdle(g_device);
-        Image::reset_count();
-        g_reference.source_.reset();
-        g_reference.yycxcz_.reset();
-        g_reference.yycxcz_blur_x_.reset();
-        g_reference.yycxcz_blurred_.reset();
-        g_reference.feature_blur_x_.reset();
-        g_test.source_.reset();
-        g_test.yycxcz_.reset();
-        g_test.yycxcz_blur_x_.reset();
-        g_test.yycxcz_blurred_.reset();
-        g_test.feature_blur_x_.reset();
-        g_error.reset();
-        g_error_color.reset();
-        g_error_readback.reset();
+        flop_reset(bypass_initialization);
     }
 
-    g_reference.source_ = Image::create_from_file(reference_path);
-    g_test.source_      = Image::create_from_file(test_path);
+    if (!bypass_initialization)
+    {
+        flop_init_reference(reference_path);
+        flop_init_test(test_path);
+    }
 
     // Validate that the images have the same dimensions
     if (g_reference.source_.width_ != g_test.source_.width_
@@ -535,18 +605,23 @@ int flop_analyze(char const* reference_path,
         s_error = "Reference and test images do not have matching extents.";
         return 1;
     }
-    out_summary->width  = g_reference.source_.width_;
-    out_summary->height = g_reference.source_.height_;
+    if (out_summary)
+    {
+        out_summary->width  = g_reference.source_.width_;
+        out_summary->height = g_reference.source_.height_;
+    }
 
     g_reference.yycxcz_ = Image::create(
         g_reference.source_, VK_FORMAT_R32G32B32A32_SFLOAT, true);
-    g_reference.yycxcz_blur_x_  = Image::create(g_reference.source_);
-    g_reference.yycxcz_blurred_ = Image::create(g_reference.source_);
+    g_reference.yycxcz_blur_x_ = Image::create(g_reference.source_);
+    g_reference.yycxcz_blurred_
+        = Image::create(g_reference.source_, VK_FORMAT_R32G32B32A32_SFLOAT);
     g_reference.feature_blur_x_ = Image::create(g_reference.source_);
     g_test.yycxcz_
         = Image::create(g_test.source_, VK_FORMAT_R32G32B32A32_SFLOAT, true);
-    g_test.yycxcz_blur_x_  = Image::create(g_test.source_);
-    g_test.yycxcz_blurred_ = Image::create(g_test.source_);
+    g_test.yycxcz_blur_x_ = Image::create(g_test.source_);
+    g_test.yycxcz_blurred_
+        = Image::create(g_test.source_, VK_FORMAT_R32G32B32A32_SFLOAT);
     g_test.feature_blur_x_ = Image::create(g_test.source_);
 
     g_error = Image::create(g_reference.source_, VK_FORMAT_R32_SFLOAT);
@@ -612,6 +687,8 @@ int flop_analyze(char const* reference_path,
         float uv_offset[2];
         float uv_scale;
         uint32_t input;
+        uint32_t tonemap;
+        float exposure;
     } data;
     data.extent[0]    = g_reference.source_.width_;
     data.extent[1]    = g_reference.source_.height_;
@@ -619,6 +696,16 @@ int flop_analyze(char const* reference_path,
     data.uv_offset[1] = 0.f;
     data.uv_scale     = 1.f;
     data.input        = g_reference.source_.index_;
+    if (g_reference.source_.hdr_)
+    {
+        data.tonemap  = tonemap;
+        data.exposure = std::powf(2.f, exposure);
+    }
+    else
+    {
+        data.tonemap  = 0;
+        data.exposure = 1.f;
+    }
     g_yycxcz.render(cb, g_reference.yycxcz_, &data);
     data.input = g_test.source_.index_;
     g_yycxcz.render(cb, g_test.yycxcz_, &data);
@@ -827,13 +914,14 @@ int flop_analyze(char const* reference_path,
     auto end_time = std::chrono::high_resolution_clock::now();
 
     auto delta = end_time - start_time;
-    out_summary->milliseconds_elapsed
-        = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
+    int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
+    if (out_summary)
+    {
+        out_summary->milliseconds_elapsed = elapsed;
+    }
 
-    std::cout << "Evaluation time: " << out_summary->milliseconds_elapsed
-              << "ms\n"
+    std::cout << "Evaluation time: " << elapsed << "ms\n"
               << "Error histogram: \n[";
-
 
     uint32_t histogram[32];
     std::memcpy(histogram, g_error_histogram.data_, sizeof(uint32_t) * 32);
@@ -846,4 +934,31 @@ int flop_analyze(char const* reference_path,
     std::printf("]\n");
 
     return 0;
+}
+
+int flop_analyze(char const* reference_path,
+                 char const* test_path,
+                 char const* output_path,
+                 FlopSummary* out_summary)
+{
+    flop_init(0, nullptr);
+    return flop_analyze_impl(
+        reference_path, test_path, output_path, 1.f, 0, out_summary, false);
+}
+
+int flop_analyze_hdr(char const* reference_path,
+                     char const* test_path,
+                     char const* output_path,
+                     float exposure,
+                     int tonemapper,
+                     FlopSummary* out_summary)
+{
+    flop_init(0, nullptr);
+    return flop_analyze_impl(reference_path,
+                             test_path,
+                             output_path,
+                             exposure,
+                             tonemapper + 1,
+                             out_summary,
+                             false);
 }

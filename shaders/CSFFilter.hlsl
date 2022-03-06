@@ -130,8 +130,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, int3 gtid : SV_GroupThreadID, int3 g
 #if DIRECTION == 0
         output[id.xy] = color;
 #else
-        // Now that we've finished the blur passes, convert out of YyCxCz back to sRGB
-        output[id.xy] = float4(linearized_Lab_to_rgb(float3(color.rg, color.z + color.w)), 1.0);
+        // Now that we've finished the blur passes, convert out of YyCxCz to xyz
+        output[id.xy] = float4(linearized_Lab_to_xyz(float3(color.rg, color.z + color.w)), 1.0);
 #endif
     }
 }

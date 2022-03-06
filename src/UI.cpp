@@ -3,12 +3,24 @@
 #include <VkGlobals.hpp>
 #include <algorithm>
 #include <backends/imgui_impl_vulkan.h>
+#include <cmath>
 #include <imgui.h>
 
 using namespace flop;
 
-static nfdfilteritem_t s_filter_list[] = {{"Images", "png,jpg,jpeg,bmp"}};
-static nfdfilteritem_t s_png_list[]    = {{"PNG", "png"}};
+static nfdfilteritem_t s_filter_list[] = {{"Images", "png,jpg,jpeg,bmp,exr"}};
+static nfdfilteritem_t s_output_list[]    = {{"PNG", "png"}};
+
+
+extern void flop_init_reference(char const* reference_path);
+extern void flop_init_test(char const* test_path);
+extern int flop_analyze_impl(char const* reference_path,
+                             char const* test_path,
+                             char const* output_path,
+                             float exposure,
+                             int tonemapper,
+                             FlopSummary* out_summary,
+                             bool bypass_initialization);
 
 void UI::set_reference(std::string const& reference)
 {
@@ -60,6 +72,16 @@ void UI::on_click(GLFWwindow* window, int button, int action)
     }
 }
 
+void UI::set_tonemap(Tonemap tonemap)
+{
+    tonemap_ = tonemap;
+}
+
+void UI::set_exposure(float exposure)
+{
+    exposure_ = exposure;
+}
+
 bool UI::analyze(bool issued_from_gui)
 {
     bool disabled = !(reference_path_ && test_path_);
@@ -68,17 +90,37 @@ bool UI::analyze(bool issued_from_gui)
         return false;
     }
 
-    if (flop_analyze(reference_path_, test_path_, output_path_, &summary_))
+    if (issued_from_gui)
     {
-        error_  = flop_get_error();
-        active_ = false;
-        return false;
+        if (flop_analyze_impl(reference_path_,
+                              test_path_,
+                              output_path_,
+                              exposure_,
+                              static_cast<int>(tonemap_),
+                              &summary_,
+                              true))
+        {
+            error_  = flop_get_error();
+            active_ = false;
+            return false;
+        }
     }
+    else
+    {
+        if (flop_analyze_hdr(reference_path_,
+                             test_path_,
+                             output_path_,
+                             exposure_,
+                             static_cast<int>(tonemap_),
+                             &summary_))
+        {
+            error_  = flop_get_error();
+            active_ = false;
+            return false;
+        }
+    }
+
     error_ = nullptr;
-    left_preview_.set_image(g_reference.source_);
-    left_preview_.set_quadrant(Preview::Quadrant::BottomLeft);
-    right_preview_.set_image(g_test.source_);
-    right_preview_.set_quadrant(Preview::Quadrant::BottomRight);
     error_preview_.set_image(g_error);
     error_preview_.set_quadrant(Preview::Quadrant::TopLeft);
     error_preview_.set_color_map(color_map_);
@@ -115,20 +157,14 @@ void UI::update()
                          | ImGuiWindowFlags_NoResize))
     {
         bool disabled = !(reference_path_ && test_path_);
-        if (disabled)
-        {
-            ImGui::BeginDisabled();
-        }
+        ImGui::BeginDisabled(disabled);
 
         if (ImGui::Button("Start analysis"))
         {
             analyze(true);
         }
 
-        if (disabled)
-        {
-            ImGui::EndDisabled();
-        }
+        ImGui::EndDisabled();
 
         if (error_)
         {
@@ -142,6 +178,22 @@ void UI::update()
         if (ImGui::Button("Select reference image"))
         {
             NFD_OpenDialog(&reference_path_, s_filter_list, 1, nullptr);
+            if (reference_path_)
+            {
+                flop_init_reference(reference_path_);
+                toggled_ = false;
+                left_preview_.set_image(g_reference.source_);
+                left_preview_.set_quadrant(Preview::Quadrant::BottomLeft);
+                viewport_dirty_ = true;
+                active_         = false;
+
+                if (g_reference.source_.width_ != g_test.source_.width_
+                    || g_reference.source_.height_ != g_test.source_.height_)
+                {
+                    g_test.source_.reset();
+                    g_error.reset();
+                }
+            }
         }
         ImGui::NextColumn();
 
@@ -149,6 +201,22 @@ void UI::update()
         if (ImGui::Button("Select test image"))
         {
             NFD_OpenDialog(&test_path_, s_filter_list, 1, nullptr);
+            if (test_path_)
+            {
+                flop_init_test(test_path_);
+                toggled_ = false;
+                right_preview_.set_image(g_test.source_);
+                right_preview_.set_quadrant(Preview::Quadrant::BottomRight);
+                viewport_dirty_ = true;
+                active_         = false;
+
+                if (g_reference.source_.width_ != g_test.source_.width_
+                    || g_reference.source_.height_ != g_test.source_.height_)
+                {
+                    g_reference.source_.reset();
+                    g_error.reset();
+                }
+            }
         }
 
         ImGui::NextColumn();
@@ -156,13 +224,48 @@ void UI::update()
             "%s", output_path_ ? output_path_ : "(No save file selected)");
         if (ImGui::Button("Select output location"))
         {
-            NFD_SaveDialog(&output_path_, s_png_list, 1, nullptr, "flop.png");
+            NFD_SaveDialog(&output_path_, s_output_list, 1, nullptr, "flop.png");
         }
 
         ImGui::Columns(1);
 
         ImGui::Spacing();
         ImGui::Separator();
+
+        bool hdr = g_reference.source_.hdr_;
+        ImGui::BeginDisabled(!hdr);
+
+        if (ImGui::SliderFloat("Exposure", &exposure_, -15.f, 3.f))
+        {
+            float exposure = std::powf(2.f, exposure_);
+            left_preview_.set_exposure(exposure);
+            right_preview_.set_exposure(exposure);
+        }
+
+        Tonemap previous_tonemap = tonemap_;
+        ImGui::Text("Tonemapping operator");
+        if (ImGui::RadioButton("ACES", tonemap_ == Tonemap::ACES))
+        {
+            tonemap_ = Tonemap::ACES;
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Reinhard", tonemap_ == Tonemap::Reinhard))
+        {
+            tonemap_ = Tonemap::Reinhard;
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Hable", tonemap_ == Tonemap::Hable))
+        {
+            tonemap_ = Tonemap::Hable;
+        }
+
+        if (tonemap_ != previous_tonemap)
+        {
+            left_preview_.set_tonemap(tonemap_);
+            right_preview_.set_tonemap(tonemap_);
+        }
+
+        ImGui::EndDisabled();
 
         ImGui::Checkbox("Toggle positions", &toggled_);
         ImGui::SameLine();
@@ -228,14 +331,14 @@ void UI::update()
                 color_map_ = ColorMap::Plasma;
             }
 
-
             ImGui::Text("Reference/Test Image View Mode");
             if (ImGui::RadioButton("Source", view_mode_ == ViewMode::Source))
             {
                 view_mode_ = ViewMode::Source;
             }
             ImGui::SameLine();
-            if (ImGui::RadioButton("Filtered Source", view_mode_ == ViewMode::FilteredSource))
+            if (ImGui::RadioButton(
+                    "Filtered Source", view_mode_ == ViewMode::FilteredSource))
             {
                 view_mode_ = ViewMode::FilteredSource;
             }
@@ -293,28 +396,28 @@ void UI::render(GLFWwindow* window, VkCommandBuffer cb)
         {
             right_preview_.render(window, cb);
         }
-        ImagePacket& left = toggled_ ? g_test : g_reference;
+        ImagePacket& left  = toggled_ ? g_test : g_reference;
         ImagePacket& right = toggled_ ? g_reference : g_test;
 
         switch (view_mode_)
         {
-       using enum ViewMode; 
-       case Source:
+            using enum ViewMode;
+        case Source:
             left_preview_.set_image(left.source_);
             right_preview_.set_image(right.source_);
             break;
-       case YyCxCz:
-           left_preview_.set_image(left.yycxcz_);
-           right_preview_.set_image(right.yycxcz_);
-           break;
-       case FilteredSource:
-           left_preview_.set_image(left.yycxcz_blurred_);
-           right_preview_.set_image(right.yycxcz_blurred_);
-           break;
-       default:
-           left_preview_.set_image(left.source_);
-           right_preview_.set_image(right.source_);
-           break;
+        case YyCxCz:
+            left_preview_.set_image(left.yycxcz_);
+            right_preview_.set_image(right.yycxcz_);
+            break;
+        case FilteredSource:
+            left_preview_.set_image(left.yycxcz_blurred_);
+            right_preview_.set_image(right.yycxcz_blurred_);
+            break;
+        default:
+            left_preview_.set_image(left.source_);
+            right_preview_.set_image(right.source_);
+            break;
         }
         left_preview_.render(window, cb);
         error_preview_.render(window, cb);

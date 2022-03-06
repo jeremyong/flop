@@ -25,6 +25,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(volk)
 
+set(TINYEXR_BUILD_SAMPLE OFF CACHE BOOL "")
+FetchContent_Declare(
+    tinyexr
+    GIT_REPOSITORY https://github.com/syoyo/tinyexr.git
+    GIT_TAG 74d0820a3ec7f67d734fabdb4311ba8dffdde5a7
+    GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable(tinyexr)
+
 set(VMA_STATIC_VULKAN_FUNCTIONS OFF CACHE BOOL "")
 set(VMA_DYNAMIC_VULKAN_FUNCTIONS ON CACHE BOOL "")
 FetchContent_Declare(
@@ -56,7 +65,7 @@ add_library(
     VMA.cpp
 )
 
-target_link_libraries(lflop PUBLIC flop_shaders)
+target_link_libraries(lflop PUBLIC flop_shaders tinyexr)
 
 target_compile_features(
     lflop
@@ -71,6 +80,7 @@ target_include_directories(
     ${vma_SOURCE_DIR}/src
     PRIVATE
     ${stb_SOURCE_DIR}
+    ${tinyexr_SOURCE_DIR}
 )
 
 target_link_libraries(
