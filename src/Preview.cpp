@@ -143,6 +143,15 @@ void Preview::init(VkRenderPass render_pass)
     vkDestroyShaderModule(g_device, ps_shader, nullptr);
 }
 
+void Preview::reset_viewport()
+{
+    uv_offset_[0]     = 0;
+    uv_offset_[1]     = 0;
+    old_uv_offset_[0] = 0;
+    old_uv_offset_[1] = 0;
+    set_viewport(viewport_);
+}
+
 void Preview::set_exposure(float exposure)
 {
     exposure_ = exposure;

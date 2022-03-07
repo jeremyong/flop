@@ -43,6 +43,8 @@ public:
     bool analyze(bool issued_from_ui);
 
 private:
+    void reset_viewports();
+
     FlopSummary summary_;
     Preview left_preview_;
     Preview right_preview_;

@@ -14,6 +14,8 @@ struct PushConstants
     uint input;
     uint tonemap;
     float exposure;
+    // If 1, multiply Yy component by alpha to account for alpha differences
+    uint handle_alpha;
 };
 
 [[vk::push_constant]]
@@ -47,5 +49,11 @@ float4 PSMain(VSOutput IN) : SV_Target0
     }
 
     float3 YyCxCz = rgb_to_linearized_Lab(color.rgb);
-    return float4(YyCxCz, color.a);
+
+    if (constants.handle_alpha != 0)
+    {
+        YyCxCz.x *= color.a;
+    }
+
+    return float4(YyCxCz, 1.f);
 }

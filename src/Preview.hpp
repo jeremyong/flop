@@ -35,6 +35,7 @@ public:
     // Initialize pipelines, descriptor sets, etc.
     static void init(VkRenderPass render_pass);
 
+    void reset_viewport();
     void set_exposure(float exposure);
     void set_quadrant(Quadrant quadrant);
     void set_tonemap(Tonemap tonemap);

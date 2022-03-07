@@ -81,14 +81,27 @@ The full help text (obtainable by passing `-h` or `--help`) is reproduced below.
 
 FLOꟼ may also be used as a library. The `test/` folder demonstrates how to link and programmatically analyze LDR or HDR images.
 
+## Differences from the original algorithm
+
+The original paper assumes fully opaque color values, but it is sometimes useful to compare differences in images that possess an alpha channel.
+FLOꟼ accommodates this by detecting the presence of the alpha channel and scaling the Yy component in linearized _Lab_ space prior to the constrast sensitivity filters.
+
+The HDR FLOꟼ algorithm simply tonemaps both reference and test HDR inputs to LDR ranges with a specified global exposure.
+This is done currently for speed (less than 100 ms on my machine), but an local tonemapping operator or exposure bracketing
+may be an option in the future.
+
 ## Limitations
 
 While FLOꟼ is implemented on the GPU, minimal profiling was actually done to fully optimize it.
 Performance varies based on image size.
-FLOꟼ currently doesn't properly account for differences in alpha, like the original paper.
 The various kernel weights themselves are currently hardcoded in the shader bytecode. This may be relaxed in the future.
 
 The HDR-ꟻLIP algorithm doesn't require specifying exposure when HDR images are supplied. It operates by
 automatically determining the exposure range, compute the ꟻLIP error for each exposure, then taking the maximum error per-pixel.
 FLOꟼ on the other hand, is meant to be used interactively, so it's recommended that the GUI be used to determine the
 appropriate exposure when analyzing HDR images.
+
+## References
+
+- [LDR ꟻLIP](https://research.nvidia.com/publication/2020-07_FLIP)
+- [HDR ꟻLIP](https://research.nvidia.com/publication/2021-05_HDR-FLIP)

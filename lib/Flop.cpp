@@ -410,17 +410,17 @@ static int create_device(char const* preferred_device, bool swapchain)
     VkDescriptorSetLayoutBinding bindings[] = {
         {.binding         = 0,
          .descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-         .descriptorCount = 16,
+         .descriptorCount = 10000,
          .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
          .pImmutableSamplers = nullptr},
         {.binding         = 1,
          .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-         .descriptorCount = 16,
+         .descriptorCount = 10000,
          .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
          .pImmutableSamplers = nullptr},
         {.binding         = 2,
          .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-         .descriptorCount = 32,
+         .descriptorCount = 10000,
          .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_COMPUTE_BIT
                        | VK_SHADER_STAGE_FRAGMENT_BIT,
          .pImmutableSamplers = nullptr},
@@ -476,7 +476,7 @@ static int create_device(char const* preferred_device, bool swapchain)
 
 void create_kernels()
 {
-    g_yycxcz.init(YyCxCz_spv_data, YyCxCz_spv_size, 4 * 8);
+    g_yycxcz.init(YyCxCz_spv_data, YyCxCz_spv_size, 4 * 9);
     g_csf_filter_x
         = Kernel::create(CSFFilterX_spv_data, CSFFilterX_spv_size, 64, 1, false);
     g_csf_filter_y
@@ -689,6 +689,7 @@ int flop_analyze_impl(char const* reference_path,
         uint32_t input;
         uint32_t tonemap;
         float exposure;
+        uint32_t handle_alpha;
     } data;
     data.extent[0]    = g_reference.source_.width_;
     data.extent[1]    = g_reference.source_.height_;
@@ -706,8 +707,24 @@ int flop_analyze_impl(char const* reference_path,
         data.tonemap  = 0;
         data.exposure = 1.f;
     }
+    if (g_reference.source_.channels_ == 4)
+    {
+        data.handle_alpha = 1;
+    }
+    else
+    {
+        data.handle_alpha = 0;
+    }
     g_yycxcz.render(cb, g_reference.yycxcz_, &data);
     data.input = g_test.source_.index_;
+    if (g_test.source_.channels_ == 4)
+    {
+        data.handle_alpha = 1;
+    }
+    else
+    {
+        data.handle_alpha = 0;
+    }
     g_yycxcz.render(cb, g_test.yycxcz_, &data);
 
     VkEventCreateInfo event_info{.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,

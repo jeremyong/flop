@@ -159,12 +159,29 @@ void UI::update()
         bool disabled = !(reference_path_ && test_path_);
         ImGui::BeginDisabled(disabled);
 
+        if (!disabled)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0x00, 0xac, 0xc1, 1.f});
+            ImGui::PushStyleColor(
+                ImGuiCol_ButtonHovered, ImVec4{0x5d, 0xde, 0xf4, 1.f});
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{0, 0, 0, 1.f});
+        }
         if (ImGui::Button("Start analysis"))
         {
+            reset_viewports();
             analyze(true);
+        }
+        if (!disabled)
+        {
+            ImGui::PopStyleColor(3);
         }
 
         ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Reset viewports"))
+        {
+            reset_viewports();
+        }
 
         if (error_)
         {
@@ -184,6 +201,7 @@ void UI::update()
                 toggled_ = false;
                 left_preview_.set_image(g_reference.source_);
                 left_preview_.set_quadrant(Preview::Quadrant::BottomLeft);
+                reset_viewports();
                 viewport_dirty_ = true;
                 active_         = false;
 
@@ -207,6 +225,7 @@ void UI::update()
                 toggled_ = false;
                 right_preview_.set_image(g_test.source_);
                 right_preview_.set_quadrant(Preview::Quadrant::BottomRight);
+                reset_viewports();
                 viewport_dirty_ = true;
                 active_         = false;
 
@@ -429,4 +448,10 @@ void UI::render(GLFWwindow* window, VkCommandBuffer cb)
 void UI::mark_viewport_dirty()
 {
     viewport_dirty_ = true;
+}
+
+void UI::reset_viewports()
+{
+    left_preview_.reset_viewport();
+    right_preview_.reset_viewport();
 }
