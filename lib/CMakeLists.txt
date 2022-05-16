@@ -29,7 +29,7 @@ set(TINYEXR_BUILD_SAMPLE OFF CACHE BOOL "")
 FetchContent_Declare(
     tinyexr
     GIT_REPOSITORY https://github.com/syoyo/tinyexr.git
-    GIT_TAG 74d0820a3ec7f67d734fabdb4311ba8dffdde5a7
+    GIT_TAG v1.0.1
     GIT_SHALLOW ON
 )
 FetchContent_MakeAvailable(tinyexr)
@@ -39,7 +39,7 @@ set(VMA_DYNAMIC_VULKAN_FUNCTIONS ON CACHE BOOL "")
 FetchContent_Declare(
     vma
     GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-    GIT_TAG v2.3.0
+    GIT_TAG v3.0.0
     GIT_SHALLOW ON
 )
 if(NOT vma_POPULATED)
@@ -77,7 +77,7 @@ target_include_directories(
     lflop
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
-    ${vma_SOURCE_DIR}/src
+    ${vma_SOURCE_DIR}/include
     PRIVATE
     ${stb_SOURCE_DIR}
     ${tinyexr_SOURCE_DIR}

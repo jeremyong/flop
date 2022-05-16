@@ -83,6 +83,12 @@ target_compile_features(
     cxx_std_20
 )
 
+target_compile_definitions(
+    flop
+    PUBLIC
+    NOMINMAX=1
+)
+
 target_link_libraries(
     flop
     PUBLIC

@@ -288,7 +288,6 @@ static int create_device(char const* preferred_device, bool swapchain)
         .descriptorIndexing                            = VK_TRUE,
         .shaderSampledImageArrayNonUniformIndexing     = VK_TRUE,
         .shaderStorageImageArrayNonUniformIndexing     = VK_TRUE,
-        .descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE,
         .descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE,
         .descriptorBindingStorageImageUpdateAfterBind  = VK_TRUE,
         .descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE,
@@ -325,13 +324,18 @@ static int create_device(char const* preferred_device, bool swapchain)
         vkGetDeviceQueue(g_device, g_compute_queue_index, 0, &g_compute_queue);
     }
 
+    VmaVulkanFunctions vulkan_functions{
+        .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr = vkGetDeviceProcAddr,
+    };
+
     VmaAllocatorCreateInfo allocator_info{
         .physicalDevice              = g_physical_device,
         .device                      = g_device,
         .preferredLargeHeapBlockSize = 0, // 256 MiB default
         .pAllocationCallbacks        = nullptr,
         .pDeviceMemoryCallbacks      = nullptr,
-        .frameInUseCount             = 0,
+        .pVulkanFunctions            = &vulkan_functions,
         .instance                    = g_instance};
 
     if (vmaCreateAllocator(&allocator_info, &g_allocator) != VK_SUCCESS)
